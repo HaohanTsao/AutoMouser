@@ -1,36 +1,7 @@
 let OPENAI_API_KEY = null;
+let SELENIUM_PROMPT = null;
 
-// Load the .env file
-fetch('./.env')
-  .then((response) => {
-    if (!response.ok) {
-      console.error("Error: Failed to load .env file");
-      return;
-    }
-    return response.text();
-  })
-  .then((data) => {
-    const envVariables = {};
-    data.split('\n').forEach((line) => {
-      const [key, value] = line.split('=');
-      if (key && value) {
-        envVariables[key.trim()] = value.trim();
-      }
-    });
-
-    OPENAI_API_KEY = envVariables.OPENAI_API_KEY;
-
-    if (!OPENAI_API_KEY) {
-      console.error("Error: OPENAI_API_KEY is not set in the .env file");
-    } else {
-      console.log("API Key loaded successfully.");
-    }
-  })
-  .catch((error) => {
-    console.error("Error loading .env file:", error);
-  });
-
-const SELENIUM_PROMPT = `Task Description: You are an advanced AI specialized in generating high-quality, robust Selenium automation scripts. Your task is to generate a Python Selenium script that mimics a series of user interactions based on the provided list of browser actions, XPaths, and input data.
+const DEFAULT_SELENIUM_PROMPT = `Task Description: You are an advanced AI specialized in generating high-quality, robust Selenium automation scripts. Your task is to generate a Python Selenium script that mimics a series of user interactions based on the provided list of browser actions, XPaths, and input data.
 
 The generated script must:
 - Use Selenium's Python bindings.
@@ -213,6 +184,66 @@ if __name__ == "__main__":
 
 Convert the following browser tracking log to a Python Selenium script:
 `;
+
+function loadPromptFile(path) {
+    return fetch(path)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load prompt file from ${path}`);
+            }
+            return response.text();
+        });
+}
+
+// Load the .env file
+fetch('./.env')
+  .then((response) => {
+    if (!response.ok) {
+      console.error("Error: Failed to load .env file");
+      return;
+    }
+    return response.text();
+  })
+  .then((data) => {
+    const envVariables = {};
+    data.split('\n').forEach((line) => {
+      const [key, value] = line.split('=');
+      if (key && value) {
+        envVariables[key.trim()] = value.trim();
+      }
+    });
+
+    // Handle OPENAI_API_KEY
+    OPENAI_API_KEY = envVariables.OPENAI_API_KEY;
+
+    if (!OPENAI_API_KEY) {
+      console.error("Error: OPENAI_API_KEY is not set in the .env file");
+    } else {
+      console.log("API Key loaded successfully.");
+    }
+
+    // Handle SELENIUM_PROMPT
+    if (envVariables.SELENIUM_PROMPT_PATH) {
+        return loadPromptFile(envVariables.SELENIUM_PROMPT_PATH)
+            .then(promptContent => {
+                SELENIUM_PROMPT = promptContent;
+                console.log(`Selenium prompt loaded from: ${envVariables.SELENIUM_PROMPT_PATH}`);
+            })
+            .catch(error => {
+                console.warn(`Failed to load custom prompt, using default prompt instead:`, error);
+                SELENIUM_PROMPT = DEFAULT_SELENIUM_PROMPT;
+            });
+    } else {
+        console.log("Using default Selenium prompt");
+        SELENIUM_PROMPT = DEFAULT_SELENIUM_PROMPT;
+    }
+
+  })
+  .catch((error) => {
+    console.error("Error loading .env file:", error);
+    console.log("Using default Selenium prompt due to .env load error");
+    SELENIUM_PROMPT = DEFAULT_SELENIUM_PROMPT;
+  });
 
 window.gotourl_browseraction = "GO_TO_URL";
 
